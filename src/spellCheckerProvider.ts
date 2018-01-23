@@ -72,9 +72,14 @@ class SpellCheckerProvider {
 
   /**
    * Set current spell checker instance for given locale key then attach into current webFrame.
+   *
    * @param {string} key Locale key for spell checker instance.
+   * @param {boolean} checkAllDictionaries Run spell check against all loaded dictionaries,
+   * returns misspelled only if all dictionary misspells it.
+   *
+   * Be aware `checkAllDictionaries` option could cause performance drops based on number of loaded dictionary.
    */
-  public switchDictionary(key: string): void {
+  public switchDictionary(key: string, checkAllDictionaries: boolean = false): void {
     if (!key || !this.spellCheckerTable[key]) {
       throw new Error(`Spellchecker dictionary for ${key} is not available, ensure dictionary loaded`);
     }
@@ -94,7 +99,7 @@ class SpellCheckerProvider {
 
     this.currentSpellCheckerStartTime = Date.now();
     this._currentSpellCheckerKey = key;
-    this.attach(key);
+    this.attach(key, checkAllDictionaries);
   }
 
   /**
@@ -110,7 +115,7 @@ class SpellCheckerProvider {
 
     const checker = this.spellCheckerTable[this._currentSpellCheckerKey];
     if (!checker) {
-      log.error(`attach: There isn't corresponding dictionary for key '${this._currentSpellCheckerKey}'`);
+      log.error(`getSuggestion: There isn't corresponding dictionary for key '${this._currentSpellCheckerKey}'`);
       return [];
     }
 
@@ -178,16 +183,46 @@ class SpellCheckerProvider {
     log.info(`unloadDictionary: dictionary for '${key}' is unloaded`);
   }
 
-  private attach(key: string): void {
-    const checker = this.spellCheckerTable[key];
-
+  private attach(key: string, checkAllDictionaries: boolean): void {
     const provider = (text: string) => {
-      const ret = checker.spellChecker.spell(text);
+      const primaryChecker = this.spellCheckerTable[key];
+
+      const primaryResult = primaryChecker.spellChecker.spell(text);
       if (this._verboseLog) {
-        log.debug(`spellChecker: checking spell for '${text}' with '${key}' returned`, ret);
+        log.debug(`spellChecker: checking spell for '${text}' with '${key}' returned`, { primaryResult });
       }
-      return ret;
+
+      const otherDictionaries = Object.keys(this.spellCheckerTable).filter(x => x !== key);
+
+      //Short-curcuit spellcheck
+      //if it doesn not check against all dict,
+      //or spell's correct (no need to check other dict),
+      //or no other dictionaries
+      if (!checkAllDictionaries || otherDictionaries.length === 0 || primaryResult === true) {
+        return primaryResult;
+      }
+
+      log.debug(`Electron-hunspell::spellChecker: running spellcheck against rest of dictionaries`, {
+        otherDictionaries
+      });
+
+      for (const dictKey of otherDictionaries) {
+        const { spellChecker } = this.spellCheckerTable[dictKey];
+        const result = spellChecker.spell(text);
+
+        if (this._verboseLog) {
+          log.debug(`Electron-hunspell::spellChecker: checking spell for '${text} with '${key}' returned`, { result });
+        }
+
+        //if any of dict considers given text is correct, return early
+        if (result === true) {
+          return true;
+        }
+      }
+
+      return false;
     };
+
     this.setProvider(key, provider);
   }
 
