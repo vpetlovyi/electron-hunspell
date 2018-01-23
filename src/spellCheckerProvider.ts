@@ -65,9 +65,9 @@ class SpellCheckerProvider {
       return;
     }
 
-    log.info(`loadAsmModule: loading hunspell-asm module`);
+    log.info(`Electron-hunspell::loadAsmModule: loading hunspell-asm module`);
     this.hunspellFactory = await loadModule();
-    log.info(`loadAsmModule: asm module loaded successfully`);
+    log.info(`Electron-hunspell::loadAsmModule: asm module loaded successfully`);
   }
 
   /**
@@ -85,7 +85,9 @@ class SpellCheckerProvider {
     }
 
     log.info(
-      `switchDictionary: switching dictionary to check spell from '${this._currentSpellCheckerKey}' to '${key}'`
+      `Electron-hunspell::switchDictionary: switching dictionary to check spell from '${
+        this._currentSpellCheckerKey
+      }' to '${key}'`
     );
 
     if (Number.isInteger(this.currentSpellCheckerStartTime)) {
@@ -93,7 +95,11 @@ class SpellCheckerProvider {
       const currentKey = this._currentSpellCheckerKey;
       if (!!currentKey) {
         this.spellCheckerTable[currentKey].uptime += timePassed;
-        log.info(`switchDictionary: total uptime for '${currentKey}' - '${this.spellCheckerTable[currentKey].uptime}'`);
+        log.info(
+          `Electron-hunspell::switchDictionary: total uptime for '${currentKey}' - '${
+            this.spellCheckerTable[currentKey].uptime
+          }'`
+        );
       }
     }
 
@@ -109,19 +115,23 @@ class SpellCheckerProvider {
    */
   public getSuggestion(text: string): Readonly<Array<string>> {
     if (!this._currentSpellCheckerKey) {
-      log.warn(`getSuggestedWord: there isn't any spellchecker key, bailing`);
+      log.warn(`Electron-hunspell::getSuggestedWord: there isn't any spellchecker key, bailing`);
       return [];
     }
 
     const checker = this.spellCheckerTable[this._currentSpellCheckerKey];
     if (!checker) {
-      log.error(`getSuggestion: There isn't corresponding dictionary for key '${this._currentSpellCheckerKey}'`);
+      log.error(
+        `Electron-hunspell::getSuggestion: There isn't corresponding dictionary for key '${
+          this._currentSpellCheckerKey
+        }'`
+      );
       return [];
     }
 
     const ret = checker.spellChecker.suggest(text);
     if (this._verboseLog) {
-      log.debug(`getSuggestion: '${text}' got suggestions`, ret);
+      log.debug(`Electron-hunspell::getSuggestion: '${text}' got suggestions`, ret);
     }
     return ret;
   }
@@ -164,7 +174,7 @@ class SpellCheckerProvider {
    */
   public unloadDictionary(key: string): void {
     if (!key || !this.spellCheckerTable[key]) {
-      log.info(`unloadDictionary: not able to find corresponding spellchecker for given key`);
+      log.info(`Electron-hunspell::unloadDictionary: not able to find corresponding spellchecker for given key`);
       return;
     }
 
@@ -172,7 +182,7 @@ class SpellCheckerProvider {
       this._currentSpellCheckerKey = null;
       this.currentSpellCheckerStartTime = Number.NEGATIVE_INFINITY;
 
-      log.warn(`unloadDictionary: unload dictionary for current spellchecker instance`);
+      log.warn(`Electron-hunspell::unloadDictionary: unload dictionary for current spellchecker instance`);
       this.setProvider(key, () => true);
     }
 
@@ -180,7 +190,7 @@ class SpellCheckerProvider {
     dict.dispose();
 
     delete this.spellCheckerTable[key];
-    log.info(`unloadDictionary: dictionary for '${key}' is unloaded`);
+    log.info(`Electron-hunspell::unloadDictionary: dictionary for '${key}' is unloaded`);
   }
 
   private attach(key: string, checkAllDictionaries: boolean): void {
@@ -189,7 +199,9 @@ class SpellCheckerProvider {
 
       const primaryResult = primaryChecker.spellChecker.spell(text);
       if (this._verboseLog) {
-        log.debug(`spellChecker: checking spell for '${text}' with '${key}' returned`, { primaryResult });
+        log.debug(`Electron-hunspell::spellChecker: checking spell for '${text}' with '${key}' returned`, {
+          primaryResult
+        });
       }
 
       const otherDictionaries = Object.keys(this.spellCheckerTable).filter(x => x !== key);
@@ -231,7 +243,7 @@ class SpellCheckerProvider {
       process.type === 'renderer' ? require('electron').webFrame : null; //tslint:disable-line:no-var-requires no-require-imports
 
     if (!webFrame) {
-      log.warn(`attach: Cannot lookup webFrame to set spell checker provider`);
+      log.warn(`Electron-hunspell::attach: Cannot lookup webFrame to set spell checker provider`);
       return;
     }
 
@@ -274,7 +286,7 @@ class SpellCheckerProvider {
       const dir = path.dirname(filePath);
       this.fileMountRefCount[dir] = !!this.fileMountRefCount[dir] ? this.fileMountRefCount[dir] + 1 : 1;
 
-      log.debug(`increaseRefCount: refCount set for '${dir}' to '${this.fileMountRefCount[dir]}'`);
+      log.debug(`Electron-hunspell::increaseRefCount: refCount set for '${dir}' to '${this.fileMountRefCount[dir]}'`);
     };
 
     const decreaseRefCount = (filePath: string) => {
@@ -289,7 +301,7 @@ class SpellCheckerProvider {
 
       const refCount = !!this.fileMountRefCount[dir] ? this.fileMountRefCount[dir] : 0;
 
-      log.debug(`decreaseRefCount: refCount set for '${dir}' to '${refCount}'`);
+      log.debug(`Electron-hunspell::decreaseRefCount: refCount set for '${dir}' to '${refCount}'`);
       return refCount;
     };
 
@@ -313,10 +325,10 @@ class SpellCheckerProvider {
     const unmountBuffer = () => {
       factory.unmount(affPath);
       factory.unmount(dicPath);
-      log.debug(`unmountBuffer: unmounted buffer `, affPath, dicPath);
+      log.debug(`Electron-hunspell::unmountBuffer: unmounted buffer `, affPath, dicPath);
 
       spellChecker.dispose();
-      log.debug(`unmountBuffer: disposed hunspell instance for `, key);
+      log.debug(`Electron-hunspell::unmountBuffer: disposed hunspell instance for `, key);
     };
 
     this.spellCheckerTable[key] = {
@@ -325,7 +337,7 @@ class SpellCheckerProvider {
       dispose: buffer ? unmountBuffer : unmountFile
     };
 
-    log.info(`assignSpellchecker: spellCheckerTable added new checker for '${key}'`);
+    log.info(`Electron-hunspell::assignSpellchecker: spellCheckerTable added new checker for '${key}'`);
   }
 }
 
