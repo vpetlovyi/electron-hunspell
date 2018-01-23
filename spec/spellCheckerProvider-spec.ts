@@ -490,6 +490,157 @@ describe('spellCheckerProvider', () => {
 
       process.type = oldType;
     });
+
+    it('should attach into webframe with provider checks all dict, short curcuit when no other dict', () => {
+      const oldType = process.type;
+      process.type = 'renderer';
+
+      const provider = new SpellCheckerProvider();
+      (provider as any).spellCheckerTable = {
+        ll: {
+          spellChecker: {
+            spell: jest.fn()
+          }
+        }
+      };
+
+      provider.switchDictionary('ll', true);
+      expect(provider.selectedDictionary).to.equal('ll');
+      const calls = (webFrame.setSpellCheckProvider as jest.Mock<any>).mock.calls;
+      expect(calls).to.have.lengthOf(1);
+      expect(calls[0][0]).to.equal('ll');
+      expect(calls[0][1]).to.equal(true);
+
+      calls[0][2].spellCheck('boo');
+      const spellMock = (provider as any).spellCheckerTable['ll'].spellChecker.spell;
+      expect(spellMock.mock.calls).to.have.lengthOf(1);
+      expect(spellMock.mock.calls[0]).to.deep.equal(['boo']);
+
+      process.type = oldType;
+    });
+  });
+
+  it('should attach into webframe with provider checks all dict, short curcuit when primary returns true', () => {
+    const oldType = process.type;
+    process.type = 'renderer';
+
+    const provider = new SpellCheckerProvider();
+    const spellMock = jest.fn();
+
+    (provider as any).spellCheckerTable = {
+      ll: {
+        spellChecker: {
+          spell: spellMock
+        }
+      },
+      bb: {
+        spellChecker: {
+          spell: spellMock
+        }
+      }
+    };
+
+    spellMock.mockReturnValueOnce(true);
+
+    provider.switchDictionary('ll', true);
+    expect(provider.selectedDictionary).to.equal('ll');
+    const calls = (webFrame.setSpellCheckProvider as jest.Mock<any>).mock.calls;
+    expect(calls).to.have.lengthOf(1);
+    expect(calls[0][0]).to.equal('ll');
+    expect(calls[0][1]).to.equal(true);
+
+    calls[0][2].spellCheck('boo');
+    expect(spellMock.mock.calls).to.have.lengthOf(1);
+    expect(spellMock.mock.calls[0]).to.deep.equal(['boo']);
+
+    process.type = oldType;
+  });
+
+  it('should attach into webframe with provider checks all dict, short curcuit when one of dict returns true', () => {
+    const oldType = process.type;
+    process.type = 'renderer';
+
+    const provider = new SpellCheckerProvider();
+    const spellMock = jest.fn();
+
+    (provider as any).spellCheckerTable = {
+      ll: {
+        spellChecker: {
+          spell: spellMock
+        }
+      },
+      bb: {
+        spellChecker: {
+          spell: spellMock
+        }
+      },
+      cc: {
+        spellChecker: {
+          spell: spellMock
+        }
+      }
+    };
+
+    provider.verboseLog = true;
+    //primary returns misspelled
+    spellMock.mockReturnValueOnce(false);
+    //first dictionary of other dict returns true, no need to check other dict
+    spellMock.mockReturnValueOnce(true);
+
+    provider.switchDictionary('ll', true);
+    expect(provider.selectedDictionary).to.equal('ll');
+    const calls = (webFrame.setSpellCheckProvider as jest.Mock<any>).mock.calls;
+    expect(calls).to.have.lengthOf(1);
+    expect(calls[0][0]).to.equal('ll');
+    expect(calls[0][1]).to.equal(true);
+
+    calls[0][2].spellCheck('boo');
+    expect(spellMock.mock.calls).to.have.lengthOf(2);
+    expect(spellMock.mock.calls).to.deep.equal([['boo'], ['boo']]);
+
+    process.type = oldType;
+  });
+
+  it('should attach into webframe with provider checks all dict, returns false when all dict misspells', () => {
+    const oldType = process.type;
+    process.type = 'renderer';
+
+    const provider = new SpellCheckerProvider();
+    const spellMock = jest.fn();
+
+    (provider as any).spellCheckerTable = {
+      ll: {
+        spellChecker: {
+          spell: spellMock
+        }
+      },
+      bb: {
+        spellChecker: {
+          spell: spellMock
+        }
+      },
+      cc: {
+        spellChecker: {
+          spell: spellMock
+        }
+      }
+    };
+
+    //all dict returns misspelled
+    spellMock.mockReturnValue(false);
+
+    provider.switchDictionary('ll', true);
+    expect(provider.selectedDictionary).to.equal('ll');
+    const calls = (webFrame.setSpellCheckProvider as jest.Mock<any>).mock.calls;
+    expect(calls).to.have.lengthOf(1);
+    expect(calls[0][0]).to.equal('ll');
+    expect(calls[0][1]).to.equal(true);
+
+    calls[0][2].spellCheck('boo');
+    expect(spellMock.mock.calls).to.have.lengthOf(3);
+    expect(spellMock.mock.calls).to.deep.equal([['boo'], ['boo'], ['boo']]);
+
+    process.type = oldType;
   });
 });
 //tslint:enable:no-require-imports
