@@ -1,4 +1,3 @@
-import ElectronType = require('electron'); //tslint:disable-line:no-var-requires no-require-imports
 import { Hunspell, HunspellFactory, loadModule } from 'hunspell-asm';
 //tslint:disable-next-line:no-require-imports
 import orderBy = require('lodash.orderby');
@@ -192,7 +191,12 @@ class SpellCheckerProvider {
   }
 
   private setProvider(key: string, provider: (text: string) => boolean): void {
-    const webFrame = window.require('electron').webFrame; //tslint:disable-line:no-var-requires no-require-imports
+    let webFrame;
+    if (<any>window) {
+      webFrame = (<any>window).require('electron').webFrame || null; //tslint:disable-line
+    } else {
+      webFrame = require('electron').webFrame; //tslint:disable-line
+    }
 
     if (!webFrame) {
       log.warn(`attach: Cannot lookup webFrame to set spell checker provider`);
