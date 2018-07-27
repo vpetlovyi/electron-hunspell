@@ -192,8 +192,7 @@ class SpellCheckerProvider {
   }
 
   private setProvider(key: string, provider: (text: string) => boolean): void {
-    const webFrame: typeof ElectronType.webFrame | null =
-      process.type === 'renderer' ? require('electron').webFrame : null; //tslint:disable-line:no-var-requires no-require-imports
+    const webFrame = window.require('electron').webFrame; //tslint:disable-line:no-var-requires no-require-imports
 
     if (!webFrame) {
       log.warn(`attach: Cannot lookup webFrame to set spell checker provider`);
